@@ -1,12 +1,12 @@
 
 import data
 from selenium import webdriver
-from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
+
 
 # no modificar
 def retrieve_phone_code(driver) -> str:
@@ -39,17 +39,21 @@ def retrieve_phone_code(driver) -> str:
 class UrbanRoutesPage:
     from_field = (By.ID, 'from')
     to_field = (By.ID, 'to')
+    request_taxi_button = (By.CSS_SELECTOR, '.button.round')
+    comfort_selector = (By.XPATH, '//div[@class="tcard-title" and text()="Comfort"]')
+    comfort_selector_assert = (By.CSS_SELECTOR, '.tcard.active .tcard-title')
+
 
     def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 10)
 
     def set_from(self, from_address):
-        self.wait.until(expected_conditions.visibility_of_element_located(self.from_field)
+        self.wait.until(EC.visibility_of_element_located(self.from_field)
           ).send_keys(from_address)
 
     def set_to(self, to_address):
-        self.wait.until(expected_conditions.visibility_of_element_located(self.to_field)
+        self.wait.until(EC.visibility_of_element_located(self.to_field)
         ).send_keys(to_address)
 
     def get_from(self):
@@ -62,26 +66,50 @@ class UrbanRoutesPage:
         self.set_from(address_from)
         self.set_to(address_to)
 
+    def get_request_taxi_button(self):
+        return self.wait.until(
+            EC.element_to_be_clickable(self.request_taxi_button)
+        )
+
+    def click_request_taxi_button(self):
+        self.get_request_taxi_button().click()
+
+    def get_comfort_selector(self):
+        return self.wait.until(
+            EC.element_to_be_clickable(self.comfort_selector)
+        )
+
+    def click_comfort_selector(self):
+        self.get_comfort_selector().click()
+
+    def get_comfort_selector_assert(self):
+        return self.wait.until(EC.presence_of_element_located(
+            self.comfort_selector_assert)
+        )
+
 class TestUrbanRoutes:
 
-    driver = None
-
-    @classmethod
-    def setup_class(cls):
+    def setup_method(self):
         options = Options()
         options.set_capability("goog:loggingPrefs", {'performance':'ALL'})
-        cls.driver = webdriver.Chrome(service=Service(), options=options)
-
-    def test_set_route(self):
+        self.driver = webdriver.Chrome(service=Service(), options=options)
         self.driver.get(data.urban_routes_url)
-        routes_page = UrbanRoutesPage(self.driver)
-        address_from = data.address_from
-        address_to = data.address_to
-        routes_page.set_route(address_from, address_to)
-        assert routes_page.get_from() == address_from
-        assert routes_page.get_to() == address_to
+        self.routes_page = UrbanRoutesPage(self.driver)
+        self.address_from = data.address_from
+        self.address_to = data.address_to
 
+    def test_1_set_route(self):
+        self.routes_page.set_route(self.address_from, self.address_to)
+        assert self.routes_page.get_from() == self.address_from
+        assert self.routes_page.get_to() == self.address_to
 
-    @classmethod
-    def teardown_class(cls):
-        cls.driver.quit()
+    def test_2_select_comfort(self):
+        self.routes_page.set_route(self.address_from, self.address_to)
+        self.routes_page.click_request_taxi_button()
+        self.routes_page.click_comfort_selector()
+
+        comfort_tariff = self.routes_page.get_comfort_selector_assert().text
+        assert comfort_tariff == "Comfort"
+
+    def teardown_method(self):
+        self.driver.quit()
