@@ -1,10 +1,12 @@
+
 import data
 from selenium import webdriver
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
-
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 
 # no modificar
 def retrieve_phone_code(driver) -> str:
@@ -40,12 +42,15 @@ class UrbanRoutesPage:
 
     def __init__(self, driver):
         self.driver = driver
+        self.wait = WebDriverWait(driver, 10)
 
     def set_from(self, from_address):
-        self.driver.find_element(*self.from_field).send_keys(from_address)
+        self.wait.until(expected_conditions.visibility_of_element_located(self.from_field)
+          ).send_keys(from_address)
 
     def set_to(self, to_address):
-        self.driver.find_element(*self.to_field).send_keys(to_address)
+        self.wait.until(expected_conditions.visibility_of_element_located(self.to_field)
+        ).send_keys(to_address)
 
     def get_from(self):
         return self.driver.find_element(*self.from_field).get_property('value')
@@ -53,7 +58,9 @@ class UrbanRoutesPage:
     def get_to(self):
         return self.driver.find_element(*self.to_field).get_property('value')
 
-
+    def set_route(self, address_from, address_to):
+        self.set_from(address_from)
+        self.set_to(address_to)
 
 class TestUrbanRoutes:
 
@@ -61,11 +68,9 @@ class TestUrbanRoutes:
 
     @classmethod
     def setup_class(cls):
-        # no lo modifiques, ya que necesitamos un registro adicional habilitado para recuperar el código de confirmación del teléfono
-        from selenium.webdriver import DesiredCapabilities
-        capabilities = DesiredCapabilities.CHROME
-        capabilities["goog:loggingPrefs"] = {'performance': 'ALL'}
-        cls.driver = webdriver.Chrome(desired_capabilities=capabilities)
+        options = Options()
+        options.set_capability("goog:loggingPrefs", {'performance':'ALL'})
+        cls.driver = webdriver.Chrome(service=Service(), options=options)
 
     def test_set_route(self):
         self.driver.get(data.urban_routes_url)
